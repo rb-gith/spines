@@ -195,7 +195,7 @@ function starsHtml(value, act) {
 }
 
 /* ---------- Navigation: each page is a history entry, so the phone's back button works ---------- */
-const ui = { route: null, cat: null, year: null, y: 0, scroll: {}, filtersX: 0, justAdded: null };
+const ui = { route: null, cat: null, year: null, query: '', y: 0, scroll: {}, filtersX: 0, justAdded: null };
 history.scrollRestoration = 'manual';
 const depth = () => (history.state && history.state.d) || 0;
 function go(hash) {
@@ -235,6 +235,7 @@ function render() {
   else if (name === 'edit' && book) app.innerHTML = formHtml(book);
   else if (name === 'book' && book) app.innerHTML = bookHtml(book);
   else if (name === 'shelf' && SHELVES.includes(arg)) app.innerHTML = shelfHtml(arg);
+  else if (name === 'search') app.innerHTML = searchHtml();
   else if (name === 'year') app.innerHTML = yearHtml();
   else if (name === 'settings') app.innerHTML = settingsHtml();
   else if (name === 'home') app.innerHTML = homeHtml();
@@ -252,6 +253,10 @@ function render() {
   }
   document.querySelectorAll('.ruled').forEach(fitNotes);
   if (name === 'add' && !sameRoute) { const t = $('#book-title'); if (t) t.focus(); }
+  if (name === 'search') {
+    filterRows(ui.query);
+    if (!sameRoute && !ui.query) $('#book-search').focus();
+  }
 }
 
 /* ---------- Home ---------- */
@@ -263,9 +268,14 @@ function homeHtml() {
   return `<div class="view">
     <header class="topbar">
       <h1>Spines</h1>
-      <button class="icon-btn" data-act="settings" aria-label="${tr('menu')}">
-        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8" /><circle cx="16" cy="7" r="2.2" /><circle cx="10" cy="17" r="2.2" /></svg>
-      </button>
+      <div class="topbar-actions">
+        <button class="icon-btn" data-act="search" aria-label="${tr('searchBooks')}">
+          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6" /><path d="M15 15l5 5" /></svg>
+        </button>
+        <button class="icon-btn" data-act="settings" aria-label="${tr('menu')}">
+          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8" /><circle cx="16" cy="7" r="2.2" /><circle cx="10" cy="17" r="2.2" /></svg>
+        </button>
+      </div>
     </header>
     ${noticeHtml()}${goalHtml()}${filtersHtml()}
     ${SHELVES.map(shelfBlockHtml).join('')}
@@ -325,25 +335,46 @@ function noticeHtml() {
 
 const creditHtml = () => `<footer class="credit">${tr('madeBy')} · <a href="https://buymeacoffee.com/gionzana" target="_blank" rel="noopener">${tr('coffee')}</a></footer>`;
 
-/* ---------- All the books on one shelf ---------- */
-function shelfHtml(shelf) {
-  const list = booksOn(shelf);
-  const cat = catById(ui.cat);
-  const label = tr('shelf_' + shelf) + (ui.cat === 'none' ? ' · ' + tr('noCategory') : cat ? ' · ' + cat.name : '');
-  const rows = list.map(b => `<button class="row" data-act="open" data-id="${esc(b.id)}" data-search="${esc((b.title + ' ' + b.author).toLowerCase())}">
+/* ---------- Book lists: all the books on one shelf, or a search of every shelf ---------- */
+/* Accents are ignored, so "levi" also finds "Lévi" */
+const plain = s => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/ð/g, 'd').replace(/þ/g, 'th');
+
+function rowHtml(b, withShelf) {
+  const sub = [b.author, withShelf ? tr('shelf_' + b.shelf) : ''].filter(Boolean).map(esc).join(' · ');
+  return `<button class="row" data-act="open" data-id="${esc(b.id)}" data-search="${esc(plain(b.title + ' ' + b.author))}">
     <span class="row-mark" style="${colorVars(colorOf(b))}"></span>
-    <span class="row-main"><span class="row-title">${esc(b.title)}</span>${b.author ? `<span class="row-sub">${esc(b.author)}</span>` : ''}</span>
+    <span class="row-main"><span class="row-title">${esc(b.title)}</span>${sub ? `<span class="row-sub">${sub}</span>` : ''}</span>
     ${b.rating ? `<span class="row-stars" aria-label="${starLabel(b.rating)}">${'★'.repeat(b.rating)}</span>` : ''}
-  </button>`).join('');
+  </button>`;
+}
+function listHtml(title, rows, value, emptyText) {
   return `<div class="view">
     <header class="topbar">
       <button class="icon-btn" data-act="back" aria-label="${tr('back')}">‹</button>
-      <h2>${esc(label)}</h2>
+      <h2>${esc(title)}</h2>
     </header>
-    <input class="field-search" type="search" id="shelf-search" placeholder="${tr('search')}" aria-label="${tr('search')}">
-    <div id="shelf-rows">${rows}</div>
-    <p class="none" id="shelf-none" ${list.length ? 'hidden' : ''}>${list.length ? tr('searchNone') : tr('empty_' + shelf)}</p>
+    <input class="field-search" type="search" id="book-search" value="${esc(value)}" placeholder="${tr('search')}" aria-label="${tr('search')}">
+    <div id="book-rows">${rows}</div>
+    <p class="none" id="book-none" ${rows ? 'hidden' : ''}>${rows ? tr('searchNone') : emptyText}</p>
   </div>`;
+}
+function shelfHtml(shelf) {
+  const cat = catById(ui.cat);
+  const label = tr('shelf_' + shelf) + (ui.cat === 'none' ? ' · ' + tr('noCategory') : cat ? ' · ' + cat.name : '');
+  return listHtml(label, booksOn(shelf).map(b => rowHtml(b, false)).join(''), '', tr('empty_' + shelf));
+}
+function searchHtml() {
+  const list = state.books.slice().sort((a, b) => a.title.localeCompare(b.title, locale()));
+  return listHtml(tr('searchBooks'), list.map(b => rowHtml(b, true)).join(''), ui.query, tr('searchNone'));
+}
+function filterRows(value) {
+  const term = plain(value.trim());
+  let shown = 0;
+  document.querySelectorAll('#book-rows .row').forEach(r => {
+    r.hidden = !r.dataset.search.includes(term);
+    if (!r.hidden) shown++;
+  });
+  if (document.querySelector('#book-rows .row')) $('#book-none').hidden = shown > 0;
 }
 
 /* ---------- Book page ---------- */
@@ -690,6 +721,7 @@ document.addEventListener('click', e => {
     case 'back': back(); break;
     case 'add': go('add'); break;
     case 'settings': go('settings'); break;
+    case 'search': ui.query = ''; go('search'); break;
     case 'open': go('book/' + encodeURIComponent(id)); break;
     case 'shelf': go('shelf/' + id); break;
     case 'year': ui.year = null; go('year'); break;
@@ -812,14 +844,9 @@ document.addEventListener('input', e => {
     bookById(currentRoute().arg).notes = el.value;
     fitNotes(el);
     changed();
-  } else if (el.id === 'shelf-search') {
-    const term = el.value.trim().toLowerCase();
-    let shown = 0;
-    document.querySelectorAll('#shelf-rows .row').forEach(r => {
-      r.hidden = !r.dataset.search.includes(term);
-      if (!r.hidden) shown++;
-    });
-    if (document.querySelector('#shelf-rows .row')) $('#shelf-none').hidden = shown > 0;
+  } else if (el.id === 'book-search') {
+    if (currentRoute().name === 'search') ui.query = el.value;
+    filterRows(el.value);
   }
 });
 

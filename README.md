@@ -8,6 +8,7 @@ A cozy book tracker for your phone. Your books stand as colorful spines on three
 |--------|---------------|
 | **Home** | Three shelves (Reading, Want to read, Finished), newest books first, plus your yearly goal if you set one |
 | **Book page** | Shelf, rating and finish date, notes on ruled lines, and quotes with page numbers |
+| **Search** | Every book on every shelf, A to Z; tap the magnifying glass on Home to open it |
 | **All books on a shelf** | A searchable list; tap a shelf's title on Home to open it |
 | **Year in books** | That year's finished books on one shelf, plus your totals |
 | **Settings** | Goal, categories, language and backup |
@@ -16,6 +17,7 @@ A cozy book tracker for your phone. Your books stand as colorful spines on three
 
 - **Add a book:** tap **+ Add a book**. Only the title is required, and you can fill in the rest later.
 - **Open a book:** tap its spine. Each shelf scrolls sideways when it fills up.
+- **Find a book:** tap the magnifying glass and type part of a title or author. Accents don't matter, so "levi" also finds "Lévi".
 - **Move a book:** use the shelf buttons on its page. Moving it to **Finished** fills in today's date, which you can change, and asks for a rating, which you can skip.
 - **Rate a book:** tap the stars on a finished book. Tap the same star again to remove the rating.
 - **Change or delete a book:** tap **Edit** on its page.
